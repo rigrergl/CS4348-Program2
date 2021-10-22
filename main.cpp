@@ -1,3 +1,18 @@
+
+/***************************************************************************
+* File: program.cpp
+* Author: Rigre R. Garciandia
+* Special credits to https://linux.die.net/man/3/pthread_create for providing sample code for working with pthreads
+
+* Procedures:
+* - main: sets up threads and mutexes, prints out statistics
+* - gatherForks: assigns a pair of forks to a philosopher (a pair of mutexes to a thread)
+* - sleepForRandomTime
+* - eat: perform the eat action for a philosopher
+* - think: perform the think action for a philosopher
+* - thread_start: entry method for the philosopher threads
+***************************************************************************/
+
 #include <pthread.h>
 #include <string.h>
 #include <stdio.h>
@@ -43,6 +58,12 @@ static void gatherForks(int tnum)
     pthread_mutex_unlock(&arbitrator);
 }
 
+/***************************************************************************
+* static int sleepForRandomTime()
+* Author: Rigre R. Garciandia
+* Date: 22 October 2021
+* Description: sleep for a random time (between 25 and 49 milliseconds)
+**************************************************************************/
 static int sleepForRandomTime()
 {
     int milliseconds = (rand() % (49 - 25 + 1)) + 25;
@@ -50,18 +71,45 @@ static int sleepForRandomTime()
     return milliseconds;
 }
 
+/***************************************************************************
+* static void eat(thread_info *tinfo)
+* Author: Rigre R. Garciandia
+* Date: 22 October 2021
+* Description: perform the eat action for a philosopher
+
+* Parameters:
+* tinfo I/P thread_info* the info of the thread that is eating
+**************************************************************************/
 static void eat(thread_info *tinfo)
 {
     tinfo->eat_count += 1;
     tinfo->eat_time += (double)sleepForRandomTime() / 1000; //convert to seconds before adding total
 }
 
+/***************************************************************************
+* static void think(thread_info *tinfo)
+* Author: Rigre R. Garciandia
+* Date: 22 October 2021
+* Description: perform the think action for a philosopher
+
+* Parameters:
+* tinfo I/P thread_info* the info of the thread that is thinking
+**************************************************************************/
 static void think(thread_info *tinfo)
 {
     tinfo->think_count += 1;
     tinfo->think_time += (double)sleepForRandomTime() / 1000;
 }
 
+/***************************************************************************
+* static void *thread_start(void *arg)
+* Author: Rigre R. Garciandia
+* Date: 22 October 2021
+* Description: entry method for the philosopher threads
+
+* Parameters:
+* arg I/P void* argument for the thread, expected to be a thread_info object holding information for the current thread
+**************************************************************************/
 static void *thread_start(void *arg)
 {
     struct thread_info *tinfo = (struct thread_info *)arg;
@@ -81,6 +129,16 @@ static void *thread_start(void *arg)
     return NULL;
 }
 
+/***************************************************************************
+* int main(int argc, char *argv[])
+* Author: Rigre R. Garciandia
+* Date: 22 October 2021
+* Description: sets up threads and mutexes, prints out statistics
+
+* Parameters:
+* argc I/P int number if arguments
+* argv I/P *argv[] command-line arguments
+**************************************************************************/
 int main(int argc, char *argv[])
 {
 
