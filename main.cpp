@@ -7,46 +7,89 @@
 #include <ctype.h>
 #include <chrono>
 #include <thread>
-#include <stdlib.h>     /* srand, rand */
+#include <stdlib.h> /* srand, rand */
 
+pthread_mutex_t forks[5];
+pthread_mutex_t arbitrator;
+bool continueRunning = true; //flag to stop threads
 
 struct thread_info /* Used as argument to thread_start() */
-{    
-    pthread_t thread_id;        /* ID returned by pthread_create() */
-    int       thread_num;       /* Application-defined thread # */
-    int       eat_count;        /* number of times the philosopher ate # */
-    double    eat_time;         /* total time the philosopher spent eating*/
-    int       think_count;      /* number of times the philospher thought */
-    double    think_time;       /* total time the philosopher spent thinking */
+{
+    pthread_t thread_id; /* ID returned by pthread_create() */
+    int thread_num;      /* Application-defined thread # */
+    long eat_count;      /* number of times the philosopher ate # */
+    double eat_time;     /* total time the philosopher spent eating*/
+    long think_count;    /* number of times the philospher thought */
+    double think_time;   /* total time the philosopher spent thinking */
 };
 
-static void sleepForRandomTime()
+/***************************************************************************
+* static void gatherForks(int n)
+* Author: Rigre R. Garciandia
+* Date: 22 October 2021
+* Description: assigns a pair of forks to a philosopher (a pair of mutexes to a thread)
+*
+* Parameters:
+* n I/P int the number of the thread accessing the forks
+**************************************************************************/
+static void gatherForks(int tnum)
 {
-    int milliseconds = (rand() % (49 - 25 + 1)) + 25;
-    printf("Random number: %d \n", milliseconds);
-    // std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
+    pthread_mutex_lock(&arbitrator);
+
+    //take two forks
+    pthread_mutex_lock(&forks[tnum]);
+    pthread_mutex_lock(&forks[(tnum + 1) % 5]);
+
+    pthread_mutex_unlock(&arbitrator);
 }
 
-/* Thread start function: display address near top of our stack,
-   and return upper-cased copy of argv_string */
+static int sleepForRandomTime()
+{
+    int milliseconds = (rand() % (49 - 25 + 1)) + 25;
+    std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
+    return milliseconds;
+}
 
-static void * thread_start(void *arg)
+static void eat(thread_info *tinfo)
+{
+    tinfo->eat_count += 1;
+    tinfo->eat_time += (double)sleepForRandomTime() / 1000; //convert to seconds before adding total
+}
+
+static void think(thread_info *tinfo)
+{
+    tinfo->think_count += 1;
+    tinfo->think_time += (double)sleepForRandomTime() / 1000;
+}
+
+static void *thread_start(void *arg)
 {
     struct thread_info *tinfo = (struct thread_info *)arg;
 
-    tinfo->eat_count = 1;
-    tinfo->eat_time = 2;
-    tinfo->think_count = 3;
-    tinfo->think_time = 4;
+    while (continueRunning)
+    {
+        gatherForks(tinfo->thread_num);
+        eat(tinfo);
 
-    return 0;
+        //release forks after done eating
+        pthread_mutex_unlock(&forks[tinfo->thread_num]);
+        pthread_mutex_unlock(&forks[(tinfo->thread_num + 1) % 5]);
+
+        think(tinfo);
+    }
+
+    return NULL;
 }
 
 int main(int argc, char *argv[])
 {
-    for (int i = 0; i < 100; i++){
-        sleepForRandomTime();
+
+    for (int i = 0; i < 5; i++) //initialize fork mutexes
+    {
+        pthread_mutex_init(&forks[i], NULL);
     }
+
+    pthread_mutex_init(&arbitrator, NULL); //initialize arbitrator mutex
 
     thread_info tinfo[5];
     pthread_attr_t attr;
@@ -59,7 +102,7 @@ int main(int argc, char *argv[])
 
     pthread_attr_init(&attr);
 
-    /* Create one thread for each command-line argument */
+    /* Create one thread for each philosopher */
 
     for (int tnum = 0; tnum < num_threads; tnum++)
     {
@@ -68,8 +111,10 @@ int main(int argc, char *argv[])
         /* The pthread_create() call stores the thread ID into
            corresponding element of tinfo[] */
 
-        pthread_create(&tinfo[tnum].thread_id, &attr,
-                       &thread_start, &tinfo[tnum]);
+        int s = pthread_create(&tinfo[tnum].thread_id, &attr,
+                               &thread_start, &tinfo[tnum]);
+        if (s != 0)
+            printf("error creating thread");
     }
 
     /* Destroy the thread attributes object, since it is no
@@ -77,16 +122,20 @@ int main(int argc, char *argv[])
 
     pthread_attr_destroy(&attr);
 
+    /* Wait 5 minutes */
+    std::this_thread::sleep_for(std::chrono::minutes(5));
+
     /* Now join with each thread, and display its returned value */
+    continueRunning = false; //flag that tells threads to stop
 
     for (int tnum = 0; tnum < num_threads; tnum++)
     {
         pthread_join(tinfo[tnum].thread_id, &res);
 
         printf("PH%d\n", tinfo[tnum].thread_num);
-        printf("Eat count: %d \n", tinfo[tnum].eat_count);
+        printf("Eat count: %ld \n", tinfo[tnum].eat_count);
         printf("Eat time: %f \n", tinfo[tnum].eat_time);
-        printf("Think count: %d \n", tinfo[tnum].think_count);
+        printf("Think count: %ld \n", tinfo[tnum].think_count);
         printf("Think time: %f \n\n", tinfo[tnum].think_time);
 
         free(res); /* Free memory allocated by thread */
