@@ -9,7 +9,10 @@
 struct thread_info {    /* Used as argument to thread_start() */
     pthread_t thread_id;        /* ID returned by pthread_create() */
     int       thread_num;       /* Application-defined thread # */
-    char     *argv_string;      /* From command-line argument */
+    int       eat_count;        /* number of times the philosopher ate # */
+    double    eat_time;         /* total time the philosopher spent eating*/
+    int       think_count;      /* number of times the philospher thought */
+    double    think_time;       /* total time the philosopher spent thinking */
 };
 
 /* Thread start function: display address near top of our stack,
@@ -17,7 +20,13 @@ struct thread_info {    /* Used as argument to thread_start() */
 
 static void * thread_start(void *arg)
 {
-    printf("Hello from inside a thread");
+    struct thread_info *tinfo = (struct thread_info *)arg;
+
+    tinfo->eat_count = 1;
+    tinfo->eat_time = 2;
+    tinfo->think_count = 3;
+    tinfo->think_time = 4;
+
     return 0;
 }
 
@@ -58,8 +67,12 @@ int main(int argc, char *argv[])
     {
         pthread_join(tinfo[tnum].thread_id, &res);
 
-        printf("Joined with thread %d; returned value was %s\n",
-               tinfo[tnum].thread_num, (char *)res);
+        printf("PH%d\n", tinfo[tnum].thread_num);
+        printf("Eat count: %d \n", tinfo[tnum].eat_count);
+        printf("Eat time: %f \n", tinfo[tnum].eat_time);
+        printf("Think count: %d \n", tinfo[tnum].think_count);
+        printf("Think time: %f \n\n", tinfo[tnum].think_time);
+
         free(res); /* Free memory allocated by thread */
     }
 
