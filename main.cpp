@@ -5,8 +5,13 @@
 #include <unistd.h>
 #include <errno.h>
 #include <ctype.h>
+#include <chrono>
+#include <thread>
+#include <stdlib.h>     /* srand, rand */
 
-struct thread_info {    /* Used as argument to thread_start() */
+
+struct thread_info /* Used as argument to thread_start() */
+{    
     pthread_t thread_id;        /* ID returned by pthread_create() */
     int       thread_num;       /* Application-defined thread # */
     int       eat_count;        /* number of times the philosopher ate # */
@@ -14,6 +19,13 @@ struct thread_info {    /* Used as argument to thread_start() */
     int       think_count;      /* number of times the philospher thought */
     double    think_time;       /* total time the philosopher spent thinking */
 };
+
+static void sleepForRandomTime()
+{
+    int milliseconds = (rand() % (49 - 25 + 1)) + 25;
+    printf("Random number: %d \n", milliseconds);
+    // std::this_thread::sleep_for(std::chrono::milliseconds(milliseconds));
+}
 
 /* Thread start function: display address near top of our stack,
    and return upper-cased copy of argv_string */
@@ -32,6 +44,10 @@ static void * thread_start(void *arg)
 
 int main(int argc, char *argv[])
 {
+    for (int i = 0; i < 100; i++){
+        sleepForRandomTime();
+    }
+
     thread_info tinfo[5];
     pthread_attr_t attr;
     int stack_size;
